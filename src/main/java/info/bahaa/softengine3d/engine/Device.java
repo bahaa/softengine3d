@@ -39,6 +39,13 @@ public class Device {
                 Point2d point = this.project(vertex, transformMatrix);
                 this.drawPoint(point);
             }
+
+            List<Vector3d> vertices = mesh.getVertices();
+            for (int i = 0; i < vertices.size() - 1; i++) {
+                Point2d point0 = this.project(vertices.get(i), transformMatrix);
+                Point2d point1 = this.project(vertices.get(i + 1), transformMatrix);
+                drawLine(point0, point1);
+            }
         }
     }
 
@@ -120,5 +127,25 @@ public class Device {
 
     protected void putPixel(int x, int y, int color) {
         this.buffer[x + y * this.width] = color;
+    }
+
+    protected void drawLine(Point2d point0, Point2d point1) {
+        double distance = point0.distance(point1);
+
+        if (distance <= 1.0) {
+            return;
+        }
+
+        Point2d diff = new Point2d();
+        diff.sub(point1, point0);
+        diff.scale(0.5);
+
+        Point2d midPoint = new Point2d();
+        midPoint.add(point0, diff);
+
+        this.drawPoint(midPoint);
+
+        this.drawLine(point0, midPoint);
+        this.drawLine(midPoint, point1);
     }
 }
