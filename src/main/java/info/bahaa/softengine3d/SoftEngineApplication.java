@@ -80,17 +80,30 @@ public class SoftEngineApplication extends Application {
     }
 
     private void initEngine() {
-        Mesh mesh = new Mesh("Cube");
-        mesh.addVertex(-1, 1, 1);
-        mesh.addVertex(1, 1, 1);
-        mesh.addVertex(-1, -1, 1);
-        mesh.addVertex(-1, -1, -1);
-        mesh.addVertex(-1, 1, -1);
-        mesh.addVertex(1, 1, -1);
-        mesh.addVertex(1, -1, 1);
-        mesh.addVertex(1, -1, -1);
+        this.meshes.add(
+                new Mesh("Cube")
+                        .addVertex(-1, 1, 1)
+                        .addVertex(1, 1, 1)
+                        .addVertex(-1, -1, 1)
+                        .addVertex(1, -1, 1)
+                        .addVertex(-1, 1, -1)
+                        .addVertex(1, 1, -1)
+                        .addVertex(1, -1, -1)
+                        .addVertex(-1, -1, -1)
 
-        this.meshes.add(mesh);
+                        .addFace(0, 1, 2)
+                        .addFace(1, 2, 3)
+                        .addFace(1, 3, 6)
+                        .addFace(1, 5, 6)
+                        .addFace(0, 1, 4)
+                        .addFace(1, 4, 5)
+                        .addFace(2, 3, 7)
+                        .addFace(3, 6, 7)
+                        .addFace(0, 2, 7)
+                        .addFace(0, 4, 7)
+                        .addFace(4, 5, 6)
+                        .addFace(4, 6, 7)
+        );
 
         camera.setPosition(new Vector3d(0, 0, 10));
     }
@@ -127,7 +140,7 @@ public class SoftEngineApplication extends Application {
         }
 
         double sum = 0.0;
-        for(double fps : this.frameRates) {
+        for (double fps : this.frameRates) {
             sum += fps;
         }
 

@@ -35,17 +35,7 @@ public class Device {
             transformMatrix.mul(mesh.transform, viewMatrix);
             transformMatrix.mul(projMatrix);
 
-            for (Vector3d vertex : mesh.getVertices()) {
-                Point2d point = this.project(vertex, transformMatrix);
-                this.drawPoint(point);
-            }
-
-            List<Vector3d> vertices = mesh.getVertices();
-            for (int i = 0; i < vertices.size() - 1; i++) {
-                Point2d point0 = this.project(vertices.get(i), transformMatrix);
-                Point2d point1 = this.project(vertices.get(i + 1), transformMatrix);
-                drawLine(point0, point1);
-            }
+            renderMeshFaces(mesh, transformMatrix);
         }
     }
 
@@ -147,5 +137,52 @@ public class Device {
 
         this.drawLine(point0, midPoint);
         this.drawLine(midPoint, point1);
+    }
+
+    protected void drawBline(Point2d point0, Point2d point1) {
+        int x0 = (int) point0.x;
+        int y0 = (int) point0.y;
+        int x1 = (int) point1.x;
+        int y1 = (int) point1.y;
+
+        int dx = Math.abs(x1 - x0);
+        int dy = Math.abs(y1 - y0);
+        int sx = (x0 < x1) ? 1 : -1;
+        int sy = (y0 < y1) ? 1 : -1;
+        int err = dx - dy;
+
+        while (true) {
+            this.drawPoint(new Point2d(x0, y0));
+
+            if ((x0 == x1) && (y0 == y1)) {
+                break;
+            }
+
+            int e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+
+    protected void renderMeshFaces(Mesh mesh, Matrix4d transform) {
+        for (Face face : mesh.getFaces()) {
+            Vector3d vertexA = mesh.getVertices().get(face.a);
+            Vector3d vertexB = mesh.getVertices().get(face.b);
+            Vector3d vertexC = mesh.getVertices().get(face.c);
+
+            Point2d pointA = this.project(vertexA, transform);
+            Point2d pointB = this.project(vertexB, transform);
+            Point2d pointC = this.project(vertexC, transform);
+
+            this.drawBline(pointA, pointB);
+            this.drawBline(pointB, pointC);
+            this.drawBline(pointC, pointA);
+        }
     }
 }

@@ -12,6 +12,7 @@ public class Mesh {
 
     private String name;
     private List<Vector3d> vertices = new ArrayList<>();
+    private List<Face> faces = new ArrayList<>();
 
     public Matrix4d transform = new Matrix4d();
 
@@ -19,19 +20,33 @@ public class Mesh {
         this.name = name;
     }
 
-    public void addVertex(Vector3d vertex) {
+    public Mesh addVertex(Vector3d vertex) {
         this.vertices.add(vertex);
+        return this;
     }
 
-    public void addVertex(double x, double y, double z) {
-        this.vertices.add(new Vector3d(x, y, z));
+    public Mesh addVertex(double x, double y, double z) {
+        return this.addVertex(new Vector3d(x, y, z));
+    }
+
+    public Mesh addFace(int a, int b, int c) {
+        return this.addFace(new Face(a, b, c));
+    }
+
+    public Mesh addFace(Face face) {
+        this.faces.add(face);
+        return this;
     }
 
     public String getName() {
-        return name;
+        return this.name;
     }
 
     public List<Vector3d> getVertices() {
-        return vertices;
+        return this.vertices;
+    }
+
+    public List<Face> getFaces() {
+        return this.faces;
     }
 }
