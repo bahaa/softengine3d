@@ -5,6 +5,7 @@ import info.bahaa.softengine3d.engine.Device;
 import info.bahaa.softengine3d.engine.Mesh;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
+import javafx.geometry.Insets;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -31,13 +32,14 @@ public class SoftEngineApplication extends Application {
 
     private WritableImage writableImage;
     private AnimationTimer animationTimer;
+    private boolean animationStarted;
     private GraphicsContext gc;
 
     private Device device;
 
-    private final double[] frameRates = new double[128];
+    private long previousFrameTimestamp = 0;
+    private float[] frameRates = new float[128];
     private int nextFrameRateIndex = 0;
-    private long lastFrameTimestamp = 0;
 
     private List<Mesh> meshes;
     private Camera camera = new Camera();
@@ -62,17 +64,28 @@ public class SoftEngineApplication extends Application {
 
         final Label frameRateLabel = new Label("Frame Rate: 00 fps");
         frameRateLabel.setTextFill(Color.GRAY);
+        frameRateLabel.setPadding(new Insets(5.0));
         root.getChildren().add(frameRateLabel);
 
         this.animationTimer = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                updateFrameRate(now);
                 animate(now);
-                frameRateLabel.setText(String.format("Frame Rate: %.3f fps", averageFrameRate()));
+                updateFrameRate(now);
+                frameRateLabel.setText(String.format("Frame Rate: ~ %.2f fps", averageFrameRate()));
             }
         };
         this.animationTimer.start();
+        this.animationStarted = true;
+
+        root.setOnMouseClicked(event -> {
+            this.animationStarted = !this.animationStarted;
+            if (this.animationStarted) {
+                this.animationTimer.start();
+            } else {
+                this.animationTimer.stop();
+            }
+        });
 
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
@@ -100,25 +113,21 @@ public class SoftEngineApplication extends Application {
         gc.drawImage(this.writableImage, 0.0, 0.0);
     }
 
-    private void updateFrameRate(long now) {
-        if (this.lastFrameTimestamp > 0) {
-            this.frameRates[this.nextFrameRateIndex % this.frameRates.length] = 1000_000_000.0 / (now - lastFrameTimestamp);
-            this.nextFrameRateIndex++;
-        }
+    private float updateFrameRate(long now) {
+        float currentFps = 1000_000_000.f / (now - this.previousFrameTimestamp);
+        this.previousFrameTimestamp = now;
 
-        this.lastFrameTimestamp = now;
+        this.frameRates[this.nextFrameRateIndex % this.frameRates.length] = currentFps;
+        this.nextFrameRateIndex++;
+
+        return currentFps;
     }
 
-    private double averageFrameRate() {
-        if (this.nextFrameRateIndex < this.frameRates.length) {
-            return 0.0;
-        }
-
-        double sum = 0.0;
-        for (double fps : this.frameRates) {
+    private float averageFrameRate() {
+        float sum = 0;
+        for (float fps : this.frameRates) {
             sum += fps;
         }
-
         return sum / this.frameRates.length;
     }
 }
