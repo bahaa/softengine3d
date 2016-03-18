@@ -184,11 +184,14 @@ public class Device {
         double z1 = interpolate(pa.z, pb.z, gradient1);
         double z2 = interpolate(pc.z, pd.z, gradient2);
 
+        double snl = interpolate(data.ndotla, data.ndotlb, gradient1);
+        double enl = interpolate(data.ndotlc, data.ndotld, gradient2);
+
         // drawing a line from left (sx) to right (ex)
         for (int x = sx; x < ex; x++) {
             double gradient = (x - sx) / (double) (ex - sx);
             double z = interpolate(z1, z2, gradient);
-            float ndotl = data.ndotla;
+            float ndotl = (float) interpolate(snl, enl, gradient);;
 
             drawPoint(
                     new Vector3d(x, data.currentY, z),
@@ -233,26 +236,13 @@ public class Device {
         Vector3d p2 = v2.coordinates;
         Vector3d p3 = v3.coordinates;
 
-        // normal face's vector is the average normal between each vertex's normal
-        // computing also the center point of the face
-        Vector3d normalFace = new Vector3d();
-        normalFace.add(p1);
-        normalFace.add(p2);
-        normalFace.add(p3);
-        normalFace.scale(1.0 / 3.0);
-
-        Vector3d centerPoint = new Vector3d();
-        centerPoint.add(v1.worldCoordinates);
-        centerPoint.add(v2.worldCoordinates);
-        centerPoint.add(v3.worldCoordinates);
-        centerPoint.scale(1.0 / 3.0);
-
         // computing the cos of the angle between the light vector and the normal vector
         // it will return a value between 0 and 1 that will be used as the intensity of the color
-        double ndotl = this.computeNDotL(centerPoint, normalFace, this.lightPosition);
+        float nl1 = (float) this.computeNDotL(v1.worldCoordinates, v1.normal, this.lightPosition);
+        float nl2 = (float) this.computeNDotL(v2.worldCoordinates, v2.normal, this.lightPosition);
+        float nl3 = (float) this.computeNDotL(v3.worldCoordinates, v3.normal, this.lightPosition);
 
-        ScanLineData slData = new ScanLineData();
-        slData.ndotla = (float) ndotl;
+        ScanLineData data = new ScanLineData();
 
         // Inverse slopes
         double dP1P2, dP1P3;
@@ -270,20 +260,36 @@ public class Device {
 
         if (dP1P2 > dP1P3) {
             for (int y = (int) p1.y; y <= (int) p3.y; y++) {
-                slData.currentY = y;
+                data.currentY = y;
                 if (y < p2.y) {
-                    processScanLine(slData, v1, v3, v1, v2, color);
+                    data.ndotla = nl1;
+                    data.ndotlb = nl3;
+                    data.ndotlc = nl1;
+                    data.ndotld = nl2;
+                    processScanLine(data, v1, v3, v1, v2, color);
                 } else {
-                    processScanLine(slData, v1, v3, v2, v3, color);
+                    data.ndotla = nl1;
+                    data.ndotlb = nl3;
+                    data.ndotlc = nl2;
+                    data.ndotld = nl3;
+                    processScanLine(data, v1, v3, v2, v3, color);
                 }
             }
         } else {
             for (int y = (int) p1.y; y <= (int) p3.y; y++) {
-                slData.currentY = y;
+                data.currentY = y;
                 if (y < p2.y) {
-                    processScanLine(slData, v1, v2, v1, v3, color);
+                    data.ndotla = nl1;
+                    data.ndotlb = nl2;
+                    data.ndotlc = nl1;
+                    data.ndotld = nl3;
+                    processScanLine(data, v1, v2, v1, v3, color);
                 } else {
-                    processScanLine(slData, v2, v3, v1, v3, color);
+                    data.ndotla = nl2;
+                    data.ndotlb = nl3;
+                    data.ndotlc = nl1;
+                    data.ndotld = nl3;
+                    processScanLine(data, v2, v3, v1, v3, color);
                 }
             }
         }
