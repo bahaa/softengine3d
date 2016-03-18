@@ -48,6 +48,11 @@ public class Device {
             transformMatrix.mul(worldViewMatrix, projectionMatrix);
 
             for (Face face : mesh.getFaces()) {
+                Vector3d transformedNormal = VecMathUtils.transformNormal(face.normal, worldViewMatrix);
+                if (transformedNormal.z >= 0.0) {
+                    continue;
+                }
+
                 Vertex vertexA = mesh.getVertices().get(face.a);
                 Vertex vertexB = mesh.getVertices().get(face.b);
                 Vertex vertexC = mesh.getVertices().get(face.c);

@@ -97,9 +97,9 @@ public class VecMathUtils {
 
     public static Vector3d transformNormal(Vector3d normal, Matrix4d transform) {
         return new Vector3d(
-                (normal.x * transform.m11) + (normal.y * transform.m21) + (normal.z * transform.m31),
-                (normal.x * transform.m12) + (normal.y * transform.m22) + (normal.z * transform.m32),
-                (normal.x * transform.m13) + (normal.y * transform.m23) + (normal.z * transform.m33)
+                (normal.x * transform.m00) + (normal.y * transform.m10) + (normal.z * transform.m20),
+                (normal.x * transform.m01) + (normal.y * transform.m11) + (normal.z * transform.m21),
+                (normal.x * transform.m02) + (normal.y * transform.m12) + (normal.z * transform.m22)
         );
     }
 }
