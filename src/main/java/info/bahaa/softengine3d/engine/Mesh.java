@@ -27,7 +27,7 @@ public class Mesh {
     private List<Face> faces = new ArrayList<>();
     private Texture texture;
 
-    public Matrix4d transform = new Matrix4d();
+    public Matrix4d worldMatrix = new Matrix4d();
 
     public Mesh(String name) {
         this.name = name;
@@ -121,7 +121,7 @@ public class Mesh {
 
             // Getting the position you've set in Blender
             JsonArray positionArray = jsonMesh.get("position").getAsJsonArray();
-            mesh.transform.transform(new Point3d(
+            mesh.worldMatrix.transform(new Point3d(
                     positionArray.get(0).getAsDouble(),
                     positionArray.get(1).getAsDouble(),
                     positionArray.get(2).getAsDouble()
@@ -134,6 +134,8 @@ public class Mesh {
                 String meshTextureName = materials.get(meshTextureID).diffuseTextureName;
                 mesh.texture = new Texture(Mesh.class.getResourceAsStream(String.format("/%s", meshTextureName)), 512, 512);
             }
+
+            mesh.calculateFaceNormals();
 
             meshes.add(mesh);
         }
@@ -152,6 +154,19 @@ public class Mesh {
     public Mesh addFace(Face face) {
         this.faces.add(face);
         return this;
+    }
+
+    public void calculateFaceNormals() {
+        for (Face face : this.faces) {
+            face.normal = new Vector3d();
+
+            face.normal.add(this.vertices.get(face.a).normal);
+            face.normal.add(this.vertices.get(face.b).normal);
+            face.normal.add(this.vertices.get(face.c).normal);
+
+            face.normal.scale(1.0 / 3.0);
+            face.normal.normalize();
+        }
     }
 
     public String getName() {

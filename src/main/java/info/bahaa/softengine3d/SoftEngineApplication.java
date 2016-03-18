@@ -102,7 +102,7 @@ public class SoftEngineApplication extends Application {
 
         rotation += 0.01;
         for (Mesh mesh : this.meshes) {
-            mesh.transform.rotY(rotation);
+            mesh.worldMatrix.rotY(rotation);
         }
 
         device.clear();

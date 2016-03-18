@@ -37,18 +37,20 @@ public class Device {
         Matrix4d projectionMatrix = perspectiveFov(0.78, (double) this.width / this.height, 0.01, 1.0);
 
         for (Mesh mesh : meshes) {
+            Matrix4d worldViewMatrix = new Matrix4d();
+            worldViewMatrix.mul(mesh.worldMatrix, viewMatrix);
+
             Matrix4d transformMatrix = new Matrix4d();
-            transformMatrix.mul(mesh.transform, viewMatrix);
-            transformMatrix.mul(projectionMatrix);
+            transformMatrix.mul(worldViewMatrix, projectionMatrix);
 
             for (Face face : mesh.getFaces()) {
                 Vertex vertexA = mesh.getVertices().get(face.a);
                 Vertex vertexB = mesh.getVertices().get(face.b);
                 Vertex vertexC = mesh.getVertices().get(face.c);
 
-                Vertex pointA = this.project(vertexA, transformMatrix, mesh.transform);
-                Vertex pointB = this.project(vertexB, transformMatrix, mesh.transform);
-                Vertex pointC = this.project(vertexC, transformMatrix, mesh.transform);
+                Vertex pointA = this.project(vertexA, transformMatrix, mesh.worldMatrix);
+                Vertex pointB = this.project(vertexB, transformMatrix, mesh.worldMatrix);
+                Vertex pointC = this.project(vertexC, transformMatrix, mesh.worldMatrix);
 
                 drawTriangle(pointA, pointB, pointC, new Color4f(1.f, 1.f, 1.f, 1.f), mesh.getTexture());
             }
@@ -110,16 +112,11 @@ public class Device {
         return new Vector3d(x / w, y / w, z / w);
     }
 
-    protected Vector3d project(Vector3d vector, Matrix4d transform) {
-        Vector3d point = transformCoordinates(vector, transform);
-
-        // The transformed coordinates will be based on coordinate system
-        // starting on the center of the screen. But drawing on screen normally starts
-        // from top left. We then need to transform them again to have x:0, y:0 on top left.
-        int x = (int) (point.x * this.width + this.width / 2.0);
-        int y = (int) (-point.y * this.height + this.height / 2.0);
-
-        return new Vector3d(x, y, point.z);
+    protected Vector3d transformNormal(Vector3d normal, Matrix4d transform) {
+        return new Vector3d(
+                (normal.x * transform.m11) + (normal.y * transform.m21) + (normal.z * transform.m31),
+                (normal.x * transform.m12) + (normal.y * transform.m22) + (normal.z * transform.m32),
+                (normal.x * transform.m13) + (normal.y * transform.m23) + (normal.z * transform.m33));
     }
 
     protected Vertex project(Vertex vertex, Matrix4d transform, Matrix4d world) {
