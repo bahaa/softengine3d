@@ -19,7 +19,7 @@ import java.util.List;
 public class Mesh {
 
     private String name;
-    private List<Vector3d> vertices = new ArrayList<>();
+    private List<Vertex> vertices = new ArrayList<>();
     private List<Face> faces = new ArrayList<>();
 
     public Matrix4d transform = new Matrix4d();
@@ -70,7 +70,11 @@ public class Mesh {
                 double y = verticesArray.get(index * verticesStep + 1).getAsDouble();
                 double z = verticesArray.get(index * verticesStep + 2).getAsDouble();
 
-                mesh.addVertex(x, y, z);
+                double nx = verticesArray.get(index * verticesStep + 3).getAsDouble();
+                double ny = verticesArray.get(index * verticesStep + 4).getAsDouble();
+                double nz = verticesArray.get(index * verticesStep + 5).getAsDouble();
+
+                mesh.addVertex(new Vertex(new Vector3d(x, y, z), new Vector3d(nx, ny, nz), null));
             }
 
             // Then filling the Faces array
@@ -95,13 +99,9 @@ public class Mesh {
         return meshes;
     }
 
-    public Mesh addVertex(Vector3d vertex) {
+    public Mesh addVertex(Vertex vertex) {
         this.vertices.add(vertex);
         return this;
-    }
-
-    public Mesh addVertex(double x, double y, double z) {
-        return this.addVertex(new Vector3d(x, y, z));
     }
 
     public Mesh addFace(int a, int b, int c) {
@@ -117,7 +117,7 @@ public class Mesh {
         return this.name;
     }
 
-    public List<Vector3d> getVertices() {
+    public List<Vertex> getVertices() {
         return this.vertices;
     }
 

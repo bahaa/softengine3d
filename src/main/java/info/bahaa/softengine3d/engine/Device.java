@@ -1,5 +1,6 @@
 package info.bahaa.softengine3d.engine;
 
+import javax.vecmath.Color4f;
 import javax.vecmath.Matrix4d;
 import javax.vecmath.Vector3d;
 import java.util.Arrays;
@@ -12,8 +13,11 @@ public class Device {
 
     private final int width;
     private final int height;
+
     private int[] buffer;
     private double[] depthBuffer;
+
+    private Vector3d lightPosition = new Vector3d(0, 10, 10);
 
     public Device(int width, int height) {
         this.width = width;
@@ -30,14 +34,24 @@ public class Device {
 
     public void render(Camera camera, List<Mesh> meshes) {
         Matrix4d viewMatrix = lookAt(camera.getPosition(), camera.getTarget(), new Vector3d(0.0, 1.0, 0.0));
-        Matrix4d projMatrix = perspectiveFov(0.78, (double) this.width / this.height, 0.01, 1.0);
+        Matrix4d projectionMatrix = perspectiveFov(0.78, (double) this.width / this.height, 0.01, 1.0);
 
         for (Mesh mesh : meshes) {
             Matrix4d transformMatrix = new Matrix4d();
             transformMatrix.mul(mesh.transform, viewMatrix);
-            transformMatrix.mul(projMatrix);
+            transformMatrix.mul(projectionMatrix);
 
-            renderMeshFaces(mesh, transformMatrix);
+            for (Face face : mesh.getFaces()) {
+                Vertex vertexA = mesh.getVertices().get(face.a);
+                Vertex vertexB = mesh.getVertices().get(face.b);
+                Vertex vertexC = mesh.getVertices().get(face.c);
+
+                Vertex pointA = this.project(vertexA, transformMatrix, mesh.transform);
+                Vertex pointB = this.project(vertexB, transformMatrix, mesh.transform);
+                Vertex pointC = this.project(vertexC, transformMatrix, mesh.transform);
+
+                drawTriangle(pointA, pointB, pointC, new Color4f(1.f, 1.f, 1.f, 1.f));
+            }
         }
     }
 
@@ -108,12 +122,26 @@ public class Device {
         return new Vector3d(x, y, point.z);
     }
 
-    protected void drawPoint(Vector3d point, int color) {
+    protected Vertex project(Vertex vertex, Matrix4d transform, Matrix4d world) {
+        Vector3d point = transformCoordinates(vertex.coordinates, transform);
+        Vector3d pointWorld = transformCoordinates(vertex.coordinates, world);
+        Vector3d normalWorld = transformCoordinates(vertex.normal, world);
+
+        // The transformed coordinates will be based on coordinate system
+        // starting on the center of the screen. But drawing on screen normally starts
+        // from top left. We then need to transform them again to have x:0, y:0 on top left.
+        point.x = point.x * this.width + this.width / 2.0;
+        point.y = -point.y * this.height + this.height / 2.0;
+
+        return new Vertex(point, normalWorld, pointWorld);
+    }
+
+    protected void drawPoint(Vector3d point, Color4f color) {
         // Clipping what's visible on screen
         if (point.x >= 0 && point.y >= 0 && point.x < this.width
                 && point.y < this.height) {
             // Drawing a yellow point
-            this.putPixel((int) point.x, (int) point.y, point.z, color);
+            this.putPixel((int) point.x, (int) point.y, point.z, getIntFromColor(color.x, color.y, color.z, color.w));
         }
     }
 
@@ -128,26 +156,6 @@ public class Device {
         this.buffer[index] = color;
     }
 
-    protected void renderMeshFaces(Mesh mesh, Matrix4d transform) {
-        int faceCount = mesh.getFaces().size();
-        int faceIndex = 0;
-
-        for (Face face : mesh.getFaces()) {
-            Vector3d vertexA = mesh.getVertices().get(face.a);
-            Vector3d vertexB = mesh.getVertices().get(face.b);
-            Vector3d vertexC = mesh.getVertices().get(face.c);
-
-            Vector3d pointA = this.project(vertexA, transform);
-            Vector3d pointB = this.project(vertexB, transform);
-            Vector3d pointC = this.project(vertexC, transform);
-
-            float componentColor = 0.25f + (faceIndex % faceCount) * 0.75f / faceCount;
-            drawTriangle(pointA, pointB, pointC, this.getIntFromColor(componentColor, componentColor, componentColor));
-
-            faceIndex++;
-        }
-    }
-
     protected double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(value, max));
     }
@@ -160,9 +168,14 @@ public class Device {
         return min + (max - min) * this.clamp(gradient);
     }
 
-    protected void processScanLine(int y, Vector3d pa, Vector3d pb, Vector3d pc, Vector3d pd, int color) {
-        double gradient1 = pa.y != pb.y ? (y - pa.y) / (pb.y - pa.y) : 1;
-        double gradient2 = pc.y != pd.y ? (y - pc.y) / (pd.y - pc.y) : 1;
+    protected void processScanLine(ScanLineData data, Vertex va, Vertex vb, Vertex vc, Vertex vd, Color4f color) {
+        Vector3d pa = va.coordinates;
+        Vector3d pb = vb.coordinates;
+        Vector3d pc = vc.coordinates;
+        Vector3d pd = vd.coordinates;
+
+        double gradient1 = pa.y != pb.y ? (data.currentY - pa.y) / (pb.y - pa.y) : 1;
+        double gradient2 = pc.y != pd.y ? (data.currentY - pc.y) / (pd.y - pc.y) : 1;
 
         int sx = (int) interpolate(pa.x, pb.x, gradient1);
         int ex = (int) interpolate(pc.x, pd.x, gradient2);
@@ -175,32 +188,71 @@ public class Device {
         for (int x = sx; x < ex; x++) {
             double gradient = (x - sx) / (double) (ex - sx);
             double z = interpolate(z1, z2, gradient);
+            float ndotl = data.ndotla;
 
-            drawPoint(new Vector3d(x, y, z), color);
+            drawPoint(
+                    new Vector3d(x, data.currentY, z),
+                    new Color4f(color.x * ndotl, color.y * ndotl, color.z * ndotl, 1.f)
+            );
         }
     }
 
-    protected void drawTriangle(Vector3d p1, Vector3d p2, Vector3d p3, int color) {
+    protected double computeNDotL(Vector3d vertex, Vector3d normal, Vector3d lightPosition) {
+        Vector3d lightDirection = new Vector3d();
+        lightDirection.sub(lightPosition, vertex);
+
+        normal.normalize();
+        lightDirection.normalize();
+
+        return Math.max(0, normal.dot(lightDirection));
+    }
+
+    protected void drawTriangle(Vertex v1, Vertex v2, Vertex v3, Color4f color) {
         // Sorting points on y
-        Vector3d temp;
+        Vertex temp;
 
-        if (p1.y > p2.y) {
-            temp = p2;
-            p2 = p1;
-            p1 = temp;
+        if (v1.coordinates.y > v2.coordinates.y) {
+            temp = v2;
+            v2 = v1;
+            v1 = temp;
         }
 
-        if (p2.y > p3.y) {
-            temp = p2;
-            p2 = p3;
-            p3 = temp;
+        if (v2.coordinates.y > v3.coordinates.y) {
+            temp = v2;
+            v2 = v3;
+            v3 = temp;
         }
 
-        if (p1.y > p2.y) {
-            temp = p2;
-            p2 = p1;
-            p1 = temp;
+        if (v1.coordinates.y > v2.coordinates.y) {
+            temp = v2;
+            v2 = v1;
+            v1 = temp;
         }
+
+        Vector3d p1 = v1.coordinates;
+        Vector3d p2 = v2.coordinates;
+        Vector3d p3 = v3.coordinates;
+
+        // normal face's vector is the average normal between each vertex's normal
+        // computing also the center point of the face
+        Vector3d normalFace = new Vector3d();
+        normalFace.add(p1);
+        normalFace.add(p2);
+        normalFace.add(p3);
+        normalFace.scale(1.0 / 3.0);
+
+        Vector3d centerPoint = new Vector3d();
+        centerPoint.add(v1.worldCoordinates);
+        centerPoint.add(v2.worldCoordinates);
+        centerPoint.add(v3.worldCoordinates);
+        centerPoint.scale(1.0 / 3.0);
+
+        // computing the cos of the angle between the light vector and the normal vector
+        // it will return a value between 0 and 1 that will be used as the intensity of the color
+        double ndotl = this.computeNDotL(centerPoint, normalFace, this.lightPosition);
+
+        ScanLineData slData = new ScanLineData();
+        slData.ndotla = (float) ndotl;
 
         // Inverse slopes
         double dP1P2, dP1P3;
@@ -218,32 +270,44 @@ public class Device {
 
         if (dP1P2 > dP1P3) {
             for (int y = (int) p1.y; y <= (int) p3.y; y++) {
+                slData.currentY = y;
                 if (y < p2.y) {
-                    processScanLine(y, p1, p3, p1, p2, color);
+                    processScanLine(slData, v1, v3, v1, v2, color);
                 } else {
-                    processScanLine(y, p1, p3, p2, p3, color);
+                    processScanLine(slData, v1, v3, v2, v3, color);
                 }
             }
         } else {
             for (int y = (int) p1.y; y <= (int) p3.y; y++) {
+                slData.currentY = y;
                 if (y < p2.y) {
-                    processScanLine(y, p1, p2, p1, p3, color);
+                    processScanLine(slData, v1, v2, v1, v3, color);
                 } else {
-                    processScanLine(y, p2, p3, p1, p3, color);
+                    processScanLine(slData, v2, v3, v1, v3, color);
                 }
             }
         }
     }
 
-    protected int getIntFromColor(float red, float green, float blue) {
+    protected int getIntFromColor(float red, float green, float blue, float alpha) {
         int r = Math.round(255 * red);
         int g = Math.round(255 * green);
         int b = Math.round(255 * blue);
+        int a = Math.round(255 * alpha);
 
+        a = (a << 24) & 0xFF000000;
         r = (r << 16) & 0x00FF0000;
         g = (g << 8) & 0x0000FF00;
         b = b & 0x000000FF;
 
-        return 0xFF000000 | r | g | b;
+        return a | r | g | b;
+    }
+
+    protected static class ScanLineData {
+        public int currentY;
+        public float ndotla;
+        public float ndotlb;
+        public float ndotlc;
+        public float ndotld;
     }
 }
