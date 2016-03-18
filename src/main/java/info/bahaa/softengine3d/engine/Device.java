@@ -17,7 +17,7 @@ public class Device {
     private int[] buffer;
     private double[] depthBuffer;
 
-    private Vector3d lightPosition = new Vector3d(0, 10, 10);
+    private Vector3d lightPosition = new Vector3d(0, 0, 10);
 
     public Device(int width, int height) {
         this.width = width;
@@ -50,7 +50,7 @@ public class Device {
                 Vertex pointB = this.project(vertexB, transformMatrix, mesh.transform);
                 Vertex pointC = this.project(vertexC, transformMatrix, mesh.transform);
 
-                drawTriangle(pointA, pointB, pointC, new Color4f(1.f, 1.f, 1.f, 1.f));
+                drawTriangle(pointA, pointB, pointC, new Color4f(1.f, 1.f, 1.f, 1.f), mesh.getTexture());
             }
         }
     }
@@ -133,7 +133,7 @@ public class Device {
         point.x = point.x * this.width + this.width / 2.0;
         point.y = -point.y * this.height + this.height / 2.0;
 
-        return new Vertex(point, normalWorld, pointWorld);
+        return new Vertex(point, normalWorld, pointWorld, vertex.textureCoordinates);
     }
 
     protected void drawPoint(Vector3d point, Color4f color) {
@@ -168,7 +168,7 @@ public class Device {
         return min + (max - min) * this.clamp(gradient);
     }
 
-    protected void processScanLine(ScanLineData data, Vertex va, Vertex vb, Vertex vc, Vertex vd, Color4f color) {
+    protected void processScanLine(ScanLineData data, Vertex va, Vertex vb, Vertex vc, Vertex vd, Color4f color, Texture texture) {
         Vector3d pa = va.coordinates;
         Vector3d pb = vb.coordinates;
         Vector3d pc = vc.coordinates;
@@ -184,18 +184,36 @@ public class Device {
         double z1 = interpolate(pa.z, pb.z, gradient1);
         double z2 = interpolate(pc.z, pd.z, gradient2);
 
+        // Normals
         double snl = interpolate(data.ndotla, data.ndotlb, gradient1);
         double enl = interpolate(data.ndotlc, data.ndotld, gradient2);
+
+        // Texure
+        double su = interpolate(data.ua, data.ub, gradient1);
+        double eu = interpolate(data.uc, data.ud, gradient2);
+        double sv = interpolate(data.va, data.vb, gradient1);
+        double ev = interpolate(data.vc, data.vd, gradient2);
 
         // drawing a line from left (sx) to right (ex)
         for (int x = sx; x < ex; x++) {
             double gradient = (x - sx) / (double) (ex - sx);
+
             double z = interpolate(z1, z2, gradient);
-            float ndotl = (float) interpolate(snl, enl, gradient);;
+            float ndotl = (float) interpolate(snl, enl, gradient);
+            double u = interpolate(su, eu, gradient);
+            double v = interpolate(sv, ev, gradient);
+
+            Color4f textureColor;
+
+            if (texture != null) {
+                textureColor = texture.map(u, v);
+            } else {
+                textureColor = new Color4f(1, 1, 1, 1);
+            }
 
             drawPoint(
                     new Vector3d(x, data.currentY, z),
-                    new Color4f(color.x * ndotl, color.y * ndotl, color.z * ndotl, 1.f)
+                    new Color4f(color.x * ndotl * textureColor.x, color.y * ndotl * textureColor.y, color.z * ndotl * textureColor.z, 1.f)
             );
         }
     }
@@ -210,7 +228,7 @@ public class Device {
         return Math.max(0, normal.dot(lightDirection));
     }
 
-    protected void drawTriangle(Vertex v1, Vertex v2, Vertex v3, Color4f color) {
+    protected void drawTriangle(Vertex v1, Vertex v2, Vertex v3, Color4f color, Texture texture) {
         // Sorting points on y
         Vertex temp;
 
@@ -266,13 +284,35 @@ public class Device {
                     data.ndotlb = nl3;
                     data.ndotlc = nl1;
                     data.ndotld = nl2;
-                    processScanLine(data, v1, v3, v1, v2, color);
+
+                    data.ua = v1.textureCoordinates.x;
+                    data.ub = v3.textureCoordinates.x;
+                    data.uc = v1.textureCoordinates.x;
+                    data.ud = v2.textureCoordinates.x;
+
+                    data.va = v1.textureCoordinates.y;
+                    data.vb = v3.textureCoordinates.y;
+                    data.vc = v1.textureCoordinates.y;
+                    data.vd = v2.textureCoordinates.y;
+
+                    processScanLine(data, v1, v3, v1, v2, color, texture);
                 } else {
                     data.ndotla = nl1;
                     data.ndotlb = nl3;
                     data.ndotlc = nl2;
                     data.ndotld = nl3;
-                    processScanLine(data, v1, v3, v2, v3, color);
+
+                    data.ua = v1.textureCoordinates.x;
+                    data.ub = v3.textureCoordinates.x;
+                    data.uc = v2.textureCoordinates.x;
+                    data.ud = v3.textureCoordinates.x;
+
+                    data.va = v1.textureCoordinates.y;
+                    data.vb = v3.textureCoordinates.y;
+                    data.vc = v2.textureCoordinates.y;
+                    data.vd = v3.textureCoordinates.y;
+
+                    processScanLine(data, v1, v3, v2, v3, color, texture);
                 }
             }
         } else {
@@ -283,13 +323,35 @@ public class Device {
                     data.ndotlb = nl2;
                     data.ndotlc = nl1;
                     data.ndotld = nl3;
-                    processScanLine(data, v1, v2, v1, v3, color);
+
+                    data.ua = v1.textureCoordinates.x;
+                    data.ub = v2.textureCoordinates.x;
+                    data.uc = v1.textureCoordinates.x;
+                    data.ud = v3.textureCoordinates.x;
+
+                    data.va = v1.textureCoordinates.y;
+                    data.vb = v2.textureCoordinates.y;
+                    data.vc = v1.textureCoordinates.y;
+                    data.vd = v3.textureCoordinates.y;
+
+                    processScanLine(data, v1, v2, v1, v3, color, texture);
                 } else {
                     data.ndotla = nl2;
                     data.ndotlb = nl3;
                     data.ndotlc = nl1;
                     data.ndotld = nl3;
-                    processScanLine(data, v2, v3, v1, v3, color);
+
+                    data.ua = v2.textureCoordinates.x;
+                    data.ub = v3.textureCoordinates.x;
+                    data.uc = v1.textureCoordinates.x;
+                    data.ud = v3.textureCoordinates.x;
+
+                    data.va = v2.textureCoordinates.y;
+                    data.vb = v3.textureCoordinates.y;
+                    data.vc = v1.textureCoordinates.y;
+                    data.vd = v3.textureCoordinates.y;
+
+                    processScanLine(data, v2, v3, v1, v3, color, texture);
                 }
             }
         }
@@ -311,9 +373,8 @@ public class Device {
 
     protected static class ScanLineData {
         public int currentY;
-        public float ndotla;
-        public float ndotlb;
-        public float ndotlc;
-        public float ndotld;
+        public float ndotla, ndotlb, ndotlc, ndotld;
+        public double ua, ub, uc, ud;
+        public double va, vb, vc, vd;
     }
 }

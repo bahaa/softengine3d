@@ -7,11 +7,15 @@ import com.google.gson.JsonParser;
 
 import javax.vecmath.Matrix4d;
 import javax.vecmath.Point3d;
+import javax.vecmath.Vector2d;
 import javax.vecmath.Vector3d;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by bahaazaid on 3/15/2016.
@@ -21,6 +25,7 @@ public class Mesh {
     private String name;
     private List<Vertex> vertices = new ArrayList<>();
     private List<Face> faces = new ArrayList<>();
+    private Texture texture;
 
     public Matrix4d transform = new Matrix4d();
 
@@ -28,11 +33,26 @@ public class Mesh {
         this.name = name;
     }
 
-    public static List<Mesh> loadFromJson(InputStream inputStream) {
+    public static List<Mesh> loadFromJson(InputStream inputStream) throws IOException {
         JsonParser parser = new JsonParser();
         JsonObject jsonObject = parser.parse(new InputStreamReader(inputStream)).getAsJsonObject();
 
         List<Mesh> meshes = new ArrayList<>();
+        Map<String, Material> materials = new HashMap<>();
+
+        for (JsonElement jsonMaterialElement : jsonObject.getAsJsonArray("materials")) {
+            JsonObject jsonMaterial = jsonMaterialElement.getAsJsonObject();
+            Material material = new Material();
+
+            material.name = jsonMaterial.get("name").getAsString();
+            material.id = jsonMaterial.get("id").getAsString();
+
+            if (jsonMaterial.get("diffuseTexture") != null) {
+                material.diffuseTextureName = jsonMaterial.get("diffuseTexture").getAsJsonObject().get("name").getAsString();
+            }
+
+            materials.put(material.id, material);
+        }
 
         for (JsonElement jsonMeshElement : jsonObject.getAsJsonArray("meshes")) {
             JsonObject jsonMesh = jsonMeshElement.getAsJsonObject();
@@ -74,7 +94,20 @@ public class Mesh {
                 double ny = verticesArray.get(index * verticesStep + 4).getAsDouble();
                 double nz = verticesArray.get(index * verticesStep + 5).getAsDouble();
 
-                mesh.addVertex(new Vertex(new Vector3d(x, y, z), new Vector3d(nx, ny, nz), null));
+                Vector2d texture = null;
+                if (uvCount > 0) {
+                    // Loading the texture coordinates
+                    double u = verticesArray.get(index * verticesStep + 6).getAsDouble();
+                    double v = verticesArray.get(index * verticesStep + 7).getAsDouble();
+                    texture = new Vector2d(u, v);
+                }
+
+                mesh.addVertex(new Vertex(
+                        new Vector3d(x, y, z),
+                        new Vector3d(nx, ny, nz),
+                        null,
+                        texture
+                ));
             }
 
             // Then filling the Faces array
@@ -93,6 +126,14 @@ public class Mesh {
                     positionArray.get(1).getAsDouble(),
                     positionArray.get(2).getAsDouble()
             ));
+
+            // Loading texure
+            if (uvCount > 0) {
+                // Texture
+                String meshTextureID = jsonMesh.get("materialId").getAsString();
+                String meshTextureName = materials.get(meshTextureID).diffuseTextureName;
+                mesh.texture = new Texture(Mesh.class.getResourceAsStream(String.format("/%s", meshTextureName)), 512, 512);
+            }
 
             meshes.add(mesh);
         }
@@ -123,5 +164,13 @@ public class Mesh {
 
     public List<Face> getFaces() {
         return this.faces;
+    }
+
+    public Texture getTexture() {
+        return texture;
+    }
+
+    public void setTexture(Texture texture) {
+        this.texture = texture;
     }
 }

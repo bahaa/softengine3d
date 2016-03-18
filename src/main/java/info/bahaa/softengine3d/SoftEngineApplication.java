@@ -19,6 +19,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import javax.vecmath.Vector3d;
+import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.List;
 
@@ -91,7 +92,7 @@ public class SoftEngineApplication extends Application {
         primaryStage.show();
     }
 
-    private void initEngine() {
+    private void initEngine() throws IOException {
         this.meshes = Mesh.loadFromJson(this.getClass().getResourceAsStream("/monkey.babylon"));
         camera.setPosition(new Vector3d(0, 0, 10));
     }
