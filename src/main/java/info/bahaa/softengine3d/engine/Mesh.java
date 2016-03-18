@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import info.bahaa.softengine3d.math.VecMathUtils;
 
 import javax.vecmath.Matrix4d;
 import javax.vecmath.Point3d;
@@ -27,10 +28,11 @@ public class Mesh {
     private List<Face> faces = new ArrayList<>();
     private Texture texture;
 
-    public Matrix4d worldMatrix = new Matrix4d();
+    private Matrix4d worldMatrix = new Matrix4d();
 
     public Mesh(String name) {
         this.name = name;
+        this.worldMatrix.setIdentity();
     }
 
     public static List<Mesh> loadFromJson(InputStream inputStream) throws IOException {
@@ -169,6 +171,26 @@ public class Mesh {
         }
     }
 
+    public void resetTransform() {
+        this.worldMatrix.setIdentity();
+    }
+
+    public void setRotationYawPitchRoll(double yaw, double pitch, double roll) {
+        this.worldMatrix = VecMathUtils.rotationYawPitchRoll(yaw, pitch, roll);
+    }
+
+    public void rotateYawPitchRoll(double yaw, double pitch, double roll) {
+        this.worldMatrix.mul(VecMathUtils.rotationYawPitchRoll(yaw, pitch, roll));
+    }
+
+    public void setTranslation(double x, double y, double z) {
+        this.worldMatrix = VecMathUtils.translation(x, y, z);
+    }
+
+    public void translate(double x, double y, double z) {
+        this.worldMatrix.mul(VecMathUtils.translation(x, y, z));
+    }
+
     public String getName() {
         return this.name;
     }
@@ -187,5 +209,9 @@ public class Mesh {
 
     public void setTexture(Texture texture) {
         this.texture = texture;
+    }
+
+    public Matrix4d getWorldMatrix() {
+        return this.worldMatrix;
     }
 }

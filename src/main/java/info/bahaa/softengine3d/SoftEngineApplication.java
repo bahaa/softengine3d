@@ -44,7 +44,6 @@ public class SoftEngineApplication extends Application {
 
     private List<Mesh> meshes;
     private Camera camera = new Camera();
-    private double rotation = 0.0;
 
     public static void main(String[] args) {
         launch(args);
@@ -100,9 +99,8 @@ public class SoftEngineApplication extends Application {
     private void animate(long now) {
         PixelWriter pixelWriter = this.writableImage.getPixelWriter();
 
-        rotation += 0.01;
         for (Mesh mesh : this.meshes) {
-            mesh.worldMatrix.rotY(rotation);
+            mesh.rotateYawPitchRoll(0.01, 0, 0);
         }
 
         device.clear();
