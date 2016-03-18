@@ -19,7 +19,6 @@ import javafx.stage.Stage;
 
 import javax.vecmath.Vector3d;
 import java.nio.IntBuffer;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,7 +39,7 @@ public class SoftEngineApplication extends Application {
     private int nextFrameRateIndex = 0;
     private long lastFrameTimestamp = 0;
 
-    private List<Mesh> meshes = new ArrayList<>();
+    private List<Mesh> meshes;
     private Camera camera = new Camera();
     private double rotation = 0.0;
 
@@ -80,31 +79,7 @@ public class SoftEngineApplication extends Application {
     }
 
     private void initEngine() {
-        this.meshes.add(
-                new Mesh("Cube")
-                        .addVertex(-1, 1, 1)
-                        .addVertex(1, 1, 1)
-                        .addVertex(-1, -1, 1)
-                        .addVertex(1, -1, 1)
-                        .addVertex(-1, 1, -1)
-                        .addVertex(1, 1, -1)
-                        .addVertex(1, -1, -1)
-                        .addVertex(-1, -1, -1)
-
-                        .addFace(0, 1, 2)
-                        .addFace(1, 2, 3)
-                        .addFace(1, 3, 6)
-                        .addFace(1, 5, 6)
-                        .addFace(0, 1, 4)
-                        .addFace(1, 4, 5)
-                        .addFace(2, 3, 7)
-                        .addFace(3, 6, 7)
-                        .addFace(0, 2, 7)
-                        .addFace(0, 4, 7)
-                        .addFace(4, 5, 6)
-                        .addFace(4, 6, 7)
-        );
-
+        this.meshes = Mesh.loadFromJson(this.getClass().getResourceAsStream("/monkey.babylon"));
         camera.setPosition(new Vector3d(0, 0, 10));
     }
 

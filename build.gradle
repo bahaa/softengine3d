@@ -10,6 +10,7 @@ repositories {
 }
 
 dependencies {
-    compile 'javax.vecmath:vecmath:1.5.2'
+    compile 'javax.vecmath:vecmath:+'
+    compile 'com.google.code.gson:gson:+'
     testCompile group: 'junit', name: 'junit', version: '4.11'
 }
