@@ -1,9 +1,15 @@
-group 'info.bahaa.softengine3d'
-version '1.0-SNAPSHOT'
 
-apply plugin: 'java'
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.9'
+}
 
-sourceCompatibility = 1.8
+javafx {
+    version = "11.0.2"
+    modules = [ 'javafx.controls' ]
+}
+
+mainClassName="info.bahaa.softengine3d.SoftEngineApplication"
 
 repositories {
     mavenCentral()
